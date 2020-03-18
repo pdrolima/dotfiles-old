@@ -1,0 +1,101 @@
+#!/bin/bash
+
+echo 'Setting up Mac...'
+
+echo 'Checking if brew is installed...'
+if test ! $(which brew); then
+  echo 'Installing brew...'
+  /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
+fi
+
+# Update Homebrew recipes
+echo 'Updating brew'
+echo '----------------'
+brew update
+
+# Install all our dependencies with bundle (See Brewfile)
+echo 'Installing dependencies from Brewfile...'
+echo '----------------'
+brew tap homebrew/bundle
+brew bundle
+
+echo "Checking if composer is installed..."
+
+if test ! $(which composer); then
+	echo 'Install composer'
+	echo '----------------'
+	php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
+	php -r "if (hash_file('sha384', 'composer-setup.php') === 'e0012edf3e80b6978849f5eff0d4b4e4c79ff1609dd1e613307e16318854d24ae64f26d17af3ef0bf7cfb710ca74755a') { echo 'Installer verified'; } else { echo 'Installer corrupt'; unlink('composer-setup.php'); } echo PHP_EOL;"
+	php composer-setup.php
+	php -r "unlink('composer-setup.php');"
+	mv composer.phar /usr/local/bin/composer
+fi
+
+
+ZSH=~/.oh-my-zsh
+
+if [ -d "$ZSH" ]; then
+	echo 'zsh is installed.'
+else	
+	# zsh 
+	echo 'Install oh-my-zsh'
+	echo '-----------------'
+	rm -rf $HOME/.oh-my-zsh
+	curl -L https://raw.githubusercontent.com/robbyrussell/oh-my-zsh/master/tools/install.sh | sh
+
+	# Symlink zsh prefs
+	rm -rf $HOME/.zshrc
+	ln -s $HOME/.dotfiles/shell/.zshrc $HOME/.zshrc
+
+	echo 'Install dracula theme'
+	echo '---------------------'
+	git clone https://github.com/dracula/zsh.git dracula
+	cp dracula/dracula.zsh-theme $ZSH/themes/dracula.zsh-theme
+	cp -R dracula/lib $ZSH/themes
+fi
+
+# Add global gitignore
+ln -s $HOME/.dotfiles/shell/.global-gitignore $HOME/.global-gitignore
+git config --global core.excludesfile $HOME/.global-gitignore
+
+# Symlink the Mackup config
+# ln -s $HOME/.dotfiles/.mackup.cfg $HOME/.mackup.cfg
+
+# Hide "last login" line when starting a new terminal session
+touch $HOME/.hushlogin
+
+# Set default MySQL root password
+brew services start mysql@5.7
+mysql -u root -e "ALTER USER root@localhost IDENTIFIED BY 'secret'; FLUSH PRIVILEGES;"
+
+echo 'Install PHP extensions with PECL'
+echo '---------------'
+pecl install imagick memcached xdebug redis
+
+echo 'Install global Composer packages'
+composer global require hirak/prestissimo laravel/installer laravel/valet
+
+echo 'Install laravel valet'
+echo '---------------------'
+valet install
+
+echo 'Create a Projects directory'
+mkdir $HOME/Projects
+
+echo 'Install yarn'
+echo '------------'
+brew install yarn
+
+echo 'Install zsh-autosuggestions'
+echo '---------------------------'
+brew install zsh-autosuggestions
+
+echo 'Generate GitHub SSH Keys'
+echo '------------------------'
+ssh-keygen -t rsa -b 4096 -C "pedro-octavio@hotmail.com"
+eval "$(ssh-agent -s)"
+copyssh
+
+echo '++++++++++++++++++++++++++++++'
+echo '++++++++++++++++++++++++++++++'
+echo '🍻 All done!'

@@ -1,0 +1,53 @@
+# PHP
+alias phpunit="vendor/bin/phpunit"
+
+# Composer
+alias cr="composer"
+alias cru="composer update"
+alias cri="composer install"
+alias crdpa="composer dumpautoload"
+
+# Artisan
+alias art="php artisan"
+alias artt="php artisan test"
+alias artm="php artisan migrate"
+alias artms="php artisan migrate:fresh --seed"
+
+# Misc
+alias sshconfig="vi ~/.ssh/config"
+alias shrug="echo '¯\_(ツ)_/¯' | pbcopy"
+alias c="clear"
+alias ..="cd .."
+alias projects="cd $HOME/Projects"
+alias copyssh="pbcopy < $HOME/.ssh/id_rsa.pub"
+alias reloadshell="source $HOME/.zshrc"
+alias reloaddns="dscacheutil -flushcache && sudo killall -HUP mDNSResponder"
+
+# JavaScript
+alias jest="./node_modules/bin/.jest"
+alias ys="yarn start"
+alias ya="yarn add"
+alias yag"yarn global add"
+alias yaw="yarn run watch"
+
+# Git
+alias gc="git checkout"
+alias gpo="git push origin"
+alias nah="git reset --hard;git clean -df"
+
+# List files
+alias l="ls -laF"
+
+# Redis
+alias flush-redis="redis-cli FLUSHALL"
+
+# IP addresses
+alias ip="curl https://diagnostic.opendns.com/myip ; echo"
+alias localip="ifconfig -a | grep -o 'inet6\? \(addr:\)\?\s\?\(\(\([0-9]\+\.\)\{3\}[0-9]\+\)\|[a-fA-F0-9:]\+\)' | awk '{ sub(/inet6? (addr:)? ?/, \"\"); print }'"
+
+# Lock the screen
+alias afk="/System/Library/CoreServices/Menu\ Extras/User.menu/Contents/Resources/CGSession -suspend"
+
+# Empty the Trash on all mounted volumes and the main HDD
+# Also, clear Apple’s System Logs to improve shell startup speed
+alias emptytrash="sudo rm -rfv /Volumes/*/.Trashes; sudo rm -rfv ~/.Trash; sudo rm -rfv /private/var/log/asl/*.asl"

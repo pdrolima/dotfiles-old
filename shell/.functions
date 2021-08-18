@@ -1,15 +1,21 @@
 # Switch PHP versions
+
 phpv() {
-    if [ $1 = "7.4" ]; then
-        valet use php
-    else
-        valet use php@$1
-    fi
-    sed -in "s/128M/512M/g" /usr/local/etc/php/$1/conf.d/php-memory-limits.ini
+    sudo update-alternatives --set php /usr/bin/php$1;
     composer global update
     source ~/.zshrc
 }
 
+gitRepo() {
+    echo 'Configure an individual repo to use a specific user and email (overrides global)'
+    read gitUsername"?Enter your username: "
+    git config user.name "$gitUsername"
+    read gitEmail"?Enter your email: "
+    git config user.email "$gitEmail"
+}
+
+alias php56="phpv 5.6"
+alias php71="phpv 7.1"
 alias php72="phpv 7.2"
 alias php73="phpv 7.3"
 alias php74="phpv 7.4"
@@ -18,8 +24,6 @@ alias php74="phpv 7.4"
 function mkd() {
    mkdir -p "$@" && cd "$@"
 }
-
-alias mysqladm='mysql -u root'
 
 # Commit everything
 function commit() {
@@ -31,14 +35,4 @@ function commit() {
 
   git add .
   eval "git commit -a -m '${commitMessage}'"
-}
-
-function db {
-    if [ "$1" = "refresh" ]; then
-        mysql -uroot -e "drop database $2; create database $2"
-    elif [ "$1" = "create" ]; then
-        mysql -uroot -e "create database $2"
-    elif [ "$1" = "drop" ]; then
-        mysql -uroot -e "drop database $2"
-    fi
 }

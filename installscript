@@ -1,101 +1,245 @@
-#!/bin/bash
+#!/bin/sh
 
-echo 'Setting up Mac...'
+print_suc () {
+    echo "\e[0m\e[32m$1\e[0m\n\n";
+}
 
-echo 'Checking if brew is installed...'
-if test ! $(which brew); then
-  echo 'Installing brew...'
-  /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
-fi
+print_title () {
+    echo "\e[0m\e[33m$1\e[35m\n\n";
+}
 
-# Update Homebrew recipes
-echo 'Updating brew'
-echo '----------------'
-brew update
+print_warn () {
+     echo "\e[0m\e[33m$1\e[33m\n\n";
+}
 
-# Install all our dependencies with bundle (See Brewfile)
-echo 'Installing dependencies from Brewfile...'
-echo '----------------'
-brew tap homebrew/bundle
-brew bundle
+print_msg () {
+    echo "\e[0m\e[0m$1\n\n";
+}
 
-echo "Checking if composer is installed..."
+print_big_suc () {
+    echo "\e[0m\e[42m\e[30m$1\e[0m\n\n";
+}
 
+echo 'Setting up your Linux 🐧...'
+echo 'Running mandatory steps...'
+
+# Update Package List
+apt-get update -y
+
+# Update System Packages
+apt-get upgrade -y
+
+# Composer is mandatory
+print_title "\nInstalling Composer..."
 if test ! $(which composer); then
 	echo 'Install composer'
 	echo '----------------'
-	php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
-	php -r "if (hash_file('sha384', 'composer-setup.php') === 'e0012edf3e80b6978849f5eff0d4b4e4c79ff1609dd1e613307e16318854d24ae64f26d17af3ef0bf7cfb710ca74755a') { echo 'Installer verified'; } else { echo 'Installer corrupt'; unlink('composer-setup.php'); } echo PHP_EOL;"
-	php composer-setup.php
-	php -r "unlink('composer-setup.php');"
-	mv composer.phar /usr/local/bin/composer
+    EXPECTED_COMPOSER_CHECKSUM="$(curl https://composer.github.io/installer.sig)"
+    php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
+    ACTUAL_COMPOSER_CHECKSUM="$(php -r "echo hash_file('sha384', 'composer-setup.php');")"
+    if [ "$EXPECTED_COMPOSER_CHECKSUM" != "$ACTUAL_COMPOSER_CHECKSUM" ]
+    then
+        >&2 echo 'ERROR: Invalid installer checksum'
+        rm composer-setup.php
+        exit 1
+    fi
+    php composer-setup.php
+    rm composer-setup.php
+    mv composer.phar /usr/local/bin/composer
+    if test $(which composer); then
+        print_suc '\nComposer was installed successfully!'
+    fi
+else
+    print_suc "Composer is already installed."
 fi
 
+# Zsh and Oh My Zsh...
+print_title '\nInstalling zsh...'
+if ! type "zsh" > /dev/null; then
+     sudo apt-get install zsh -y
+    else
+    print_suc "ZSH is installed!"
+fi
 
+print_title '\nInstalling Oh My Zsh...'
+# ZSH
 ZSH=~/.oh-my-zsh
-
 if [ -d "$ZSH" ]; then
-	echo 'zsh is installed.'
-else	
-	# zsh 
-	echo 'Install oh-my-zsh'
+	print_suc 'Oh My Zsh is installed.'
+else
+	# zsh
+	print_msg 'Install oh-my-zsh'
 	echo '-----------------'
 	rm -rf $HOME/.oh-my-zsh
 	curl -L https://raw.githubusercontent.com/robbyrussell/oh-my-zsh/master/tools/install.sh | sh
 
-	# Symlink zsh prefs
+	# Removes .zshrc from $HOME (if it exists) and symlinks the .zshrc file from the .dotfiles
 	rm -rf $HOME/.zshrc
 	ln -s $HOME/.dotfiles/shell/.zshrc $HOME/.zshrc
 
-	echo 'Install dracula theme'
-	echo '---------------------'
-	git clone https://github.com/dracula/zsh.git dracula
-	cp dracula/dracula.zsh-theme $ZSH/themes/dracula.zsh-theme
-	cp -R dracula/lib $ZSH/themes
+    # Install spaceship
+    git clone https://github.com/denysdovhan/spaceship-prompt.git "$ZSH_CUSTOM/themes/spaceship-prompt"
+    ln -s "$ZSH_CUSTOM/themes/spaceship-prompt/spaceship.zsh-theme" "$ZSH_CUSTOM/themes/spaceship.zsh-theme"
 fi
 
-# Add global gitignore
-ln -s $HOME/.dotfiles/shell/.global-gitignore $HOME/.global-gitignore
-git config --global core.excludesfile $HOME/.global-gitignore
+install_php() {
+    # Install Some PPAs
+    print_msg '\nInstalling PPAs...'
+    apt-add-repository ppa:ondrej/php -y
+    print_msg '\nUpdating...'
+    apt-get update -y
 
-# Symlink the Mackup config
-# ln -s $HOME/.dotfiles/.mackup.cfg $HOME/.mackup.cfg
+    if ! command -v php5.6 &> /dev/null; then
+        sudo apt install php5.6-cli php-common php5.6-common php5.6-json php5.6-opcache php5.6-readline \
+        php5.6-xml php5.6-intl php5.6-mcrypt php5.6-mbstring php5.6-soap php5.6-curl php5.6-zip php5.6-mysql \
+        php5.6-mysqli -y
+    fi
 
-# Hide "last login" line when starting a new terminal session
-touch $HOME/.hushlogin
+    if ! command -v php7.1 &> /dev/null; then
+        sudo apt install php7.1-cli php-common php7.1-common php7.1-json php7.1-opcache php7.1-readline php7.1-xml \
+        php7.1-intl php7.1-mcrypt php7.1-mbstring php7.1-soap php7.1-curl php7.1-zip php7.1-mysql -y
+    fi
 
-# Set default MySQL root password
-brew services start mysql@5.7
-mysql -u root -e "ALTER USER root@localhost IDENTIFIED BY 'secret'; FLUSH PRIVILEGES;"
+    if ! command -v php7.2 &> /dev/null; then
+        sudo apt install php7.2-cli php-common php7.2-common php7.2-json php7.2-opcache php7.2-readline \
+        php7.2-xml php7.2-intl php7.2-mbstring \
+        php7.2-soap php7.2-curl php7.2-zip php7.2-mysql -y
+    fi
 
-echo 'Install PHP extensions with PECL'
-echo '---------------'
-pecl install imagick memcached xdebug redis
+    if ! command -v php7.3 &> /dev/null; then
+        sudo apt install php7.3-cli php-common php7.3-common php7.3-json \
+        php7.3-opcache php7.3-readline php7.3-xml php7.3-intl \
+        php7.3-mbstring php7.3-soap php7.3-curl php7.3-zip php7.3-mysql -y
+    fi
 
-echo 'Install global Composer packages'
-composer global require hirak/prestissimo laravel/installer laravel/valet
+    if ! command -v php7.4 &> /dev/null; then
+        sudo apt install php7.4-cli php-common php7.4-common php7.4-json \
+        php7.4-opcache php7.4-readline \
+        php7.4-xml php7.4-intl php7.4-mbstring php7.4-soap php7.4-curl php7.4-zip php7.4-mysql -y
+    fi
 
-echo 'Install laravel valet'
-echo '---------------------'
-valet install
+    if ! command -v php8.0 &> /dev/null; then
+        sudo apt install php8.0-cli php-common php8.0-common \
+        php8.0-opcache php8.0-readline \
+        php8.0-xml php8.0-intl php8.0-mbstring php8.0-soap php8.0-curl php8.0-zip php8.0-mysql -y
+    fi
+}
 
-echo 'Create a Projects directory'
-mkdir $HOME/Projects
+install_aws_cli() {
+    # Install awscli
+    if ! type "aws" &> /dev/null; then
+        print_msg '\n Installing AWS CLI V2'
+        echo '++++++++++++++++++++++++++++++'
+        curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+        unzip awscliv2.zip
+        sudo ./aws/install
+        if type "aws" &> /dev/null; then
+            print_suc '\nAWS CLI was successfully installed!'
+            rm -rf aws
+            rm -rf awscliv2.zip
+        fi
+    fi
+    print_msg '\nAWS CLI is already installed.'
+}
 
-echo 'Install yarn'
-echo '------------'
-brew install yarn
+install_docker_engine() {
+    # Install Docker Engine / Docker Compose
+    if ! type "docker" > /dev/null; then
+        print_msg '\nInstall Docker Engine'
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+        echo \
+        "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu \
+        $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+        apt-get update -y
+        apt-get install docker-ce -y
+        print_suc '\n\nDocker Engine was successfully installed!'
+        echo '--------------------------------------------------'
+        print_msg '\nSetting up Docker...'
+        print_msg '\nAdding your user to the `docker` group so you can use Docker without sudo'
+        # Add your user to the `docker` group so you can use Docker without sudo
+        sudo usermod -a -G docker $(whoami)
 
-echo 'Install zsh-autosuggestions'
-echo '---------------------------'
-brew install zsh-autosuggestions
+        print_msg '\nEnabling docker on startup'
+        sudo systemctl enable docker
 
-echo 'Generate GitHub SSH Keys'
-echo '------------------------'
-ssh-keygen -t rsa -b 4096 -C "pedro-octavio@hotmail.com"
-eval "$(ssh-agent -s)"
-copyssh
+        print_msg '\nStarting docker'
+        sudo systemctl start docker
+    else
+        print_msg '\nDocker Engine is already installed.'
+    fi
+}
 
-echo '++++++++++++++++++++++++++++++'
-echo '++++++++++++++++++++++++++++++'
-echo '🍻 All done!'
+install_docker_compose() {
+    if ! type "docker-compose" > /dev/null; then
+        print_msg 'Intall Docker Compose'
+        echo '---------------'
+        sudo curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+        sudo chmod +x /usr/local/bin/docker-compose
+        print_suc '\n\nDocker Engine was successfully installed!'
+    else
+        print_msg '\nDocker Engine is already installed.'
+    fi
+}
+
+install_apps() {
+    ./app.sh
+}
+
+echo "======================================================="
+echo "======== Setup your environment automatically 🐧 ======"
+echo "======================================================="
+
+echo "1) Install Base Packages 📦️"
+echo "2) Install Applications"
+echo "3) Install global Composer packages 📦️"
+echo "4) Install PHP (5.6, 7.1, 7.2, 7.3, 7.4 and 8.0) 🐘"
+echo "5) Setup Git (globally) 🚀"
+echo "6) Install AWS CLI ☁️"
+echo "7) Install Docker Engine 🐳"
+echo "8) Install Docker Compose 🐳"
+echo "9) Install everything at once!"
+
+read -p "Choose an option: " installOption
+
+case $installOption in
+    1)
+        # Install some packages
+        apt-get install -y apt-transport-https ca-certificates curl \
+        gnupg lsb-release software-properties-common \
+        xclip git
+    ;;
+    2)
+        install_apps
+    ;;
+    3)
+        # Install global Composer packages
+        /usr/local/bin/composer global require laravel/installer beyondcode/expose
+    ;;
+    4)
+        install_php
+    ;;
+    5)
+        git config --global core.autocrlf input
+        git config --global color.ui auto
+        read -p "Enter your username: " gitUsername
+        git config --global user.name "$gitUsername"
+        read -p "Enter your email: " gitEmail
+        git config --global user.email "$gitEmail"
+    ;;
+    6)
+       install_aws_cli
+    ;;
+    7)
+        install_docker_engine
+    ;;
+    8)
+       install_docker_compose
+    ;;
+    9)
+        install_aws_cli
+        install_docker_engine
+        install_docker_compose
+        install_php
+        print_big_suc "\n\n Your environment is done."
+    ;;
+esac

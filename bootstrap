@@ -1,8 +1,8 @@
-#!/bin/bash
+#!/bin/sh
 
-function bootstrapTerminal() {	
+function bootstrapTerminal() {
 	sudo -v #ask password beforehand
-	source ~/Projects/dotfiles/installscript
+    source ~/.dotfiles/installscript
 }
 
 
